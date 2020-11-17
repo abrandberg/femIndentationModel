@@ -1,0 +1,4 @@
+*.asv
+*.bak
+*.mat
+runFolder/

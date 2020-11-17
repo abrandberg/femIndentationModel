@@ -1,0 +1,334 @@
+
+hSpaceW = iRadius*9.0 				! Half space width (N.B. only 1/4th of real world geometry)
+hSpaceL = iRadius*9.0 				! Half space length (N.B. only 1/4th of real world geometry)
+hSpaceD = iRadius*9.0!1.2 				! Half space depth (1:1 real world geometry)
+
+cSpaceW = iRadius/2.4 				! Contact zone width
+cSpaceL = iRadius/2.4 				! Contact zone length
+
+meshFine = 18*1 				! Number of divisions in the finely meshed sections
+meshNormal = 28!16*2 			! Number of divisions in the other sections
+
+! ********** Material law
+MP,EX,1,800e3       		! YOUNG'S MODULUS (N/mm^2)
+MP,NUXY,1,0.0       		! POISSON'S RATIO
+MP,MU,1,fricCond  			! COEFFICIENT OF FRICTION
+
+MP,EX,2,eLong       		! YOUNG'S MODULUS (N/mm^2)
+MP,EY,2,eTran       		! YOUNG'S MODULUS (N/mm^2)
+MP,EZ,2,eTran       		! YOUNG'S MODULUS (N/mm^2)
+MP,NUXY,2,nu       		! POISSON'S RATIO
+MP,NUXZ,2,nu       		! POISSON'S RATIO
+MP,NUYZ,2,nu       		! POISSON'S RATIO
+MP,GXY,2,GLT			!eLong/(2*(1+nu))
+MP,GXZ,2,GLT			!eLong/(2*(1+nu))
+MP,GYZ,2,eTran/(2*(1+nu))			!eLong/(2*(1+nu))
+MP,MU,2,0.0       			! COEFFICIENT OF FRICTION
+
+
+*if,visco,eq,1,then			! Add viscoelasticity
+	tb,prony,2,,1,shear	!define viscosity parameters (shear)
+	tbdata,1,vFac,10
+	!tb,prony,2,,1,bulk	!define viscosity parameters (shear)
+	!tbdata,1,vFac,10
+*endif
+
+! ********** Element technology
+ET,1,SOLID185				!3D STRUCTURAL SOLID
+ET,2,SOLID185				!3D STRUCTURAL SOLID
+
+ET,3,CONTA173				!3D 4-NODE SURFACE SURFACE CONTACT
+KEYO,3,4,3				    !DETECTION BY MORTAR
+KEYO,3,6,2 					! Aggressive update of stiffness
+KEYO,3,10,2					!CONTACT STIFFNESS BY STRESS
+
+ET,4,TARGE170				!TARGET ELEMENTS
+
+! ********** Coordinate system
+csys,0
+local,99,0,0,0,0,rAZ,rAX,rAY 		! Local coordinate system 99, at origo, rotation around
+									! rAZ - Rotation around Z from X toward Y
+									! rAX - Rotation around X from Y toward Z
+									! rAY - Rotation around Y from Z toward X
+csys,0
+
+
+
+! ********** Geometry & Meshing
+mat,1
+WPOFF,0,hSpaceD+iRadius  			!TARGET SIDE
+PCIRC,iRadius, ,270,360, 	! Generate 1/4th of a circle
+WPAVE,0,0,0 
+RECT,0,cSpaceL,hSpaceD,hSpaceD+cSpaceW			! Generate geometry where mesh should be dense
+
+AOVLAP,1,2					! COMBINES THE AREAS
+ASEL,S, ,, 3, 
+ADEL,ALL
+
+LSEL,S, , , 8
+LSEL,A, , , 10
+LDEL,ALL
+
+KSEL,S, , , 5
+KDEL, ALL
+ALLSEL
+AGLUE,4,5
+
+k,9,0.5*iRadius,iRadius+hSpaceD
+L,3,9
+L,9,2
+L,9,6
+
+LESI,1,,,meshFine					! Set line divisions
+LESI,3,,,meshNormal
+LESI,4,,,meshNormal
+LESI,6,,,meshFine
+LESI,9,,,meshFine
+LESI,11,,,meshNormal
+LESI,12,,,meshNormal
+LESI,13,,,meshNormal
+LESI,14,,,meshNormal
+
+A,7,6,9,3					! Generate new areas
+APTN,1,5
+VROTAT,1,2,4,,,,1,3,90,1 	! Form a volume 1/8th of a cube to represent the indenter
+allsel
+
+TYPE,1						!BOTTOM IS MESHED WITH TYPE 1
+VMESH,ALL
+
+
+mat,2
+esys,99
+RECT,0,cSpaceW,hSpaceD-cSpaceL,hSpaceD				! Generate halfspace
+RECT,cSpaceL,hSpaceW,hSpaceD-cSpaceL,hSpaceD				!
+RECT,0,cSpaceW,0,hSpaceD-cSpaceL				!
+RECT,cSpaceW,hSpaceW,0,hSpaceD-cSpaceL				!
+AGLUE,14,15,16,17
+
+LESI,21,,,meshFine				! Set line divisions
+LESI,22,,,meshFine
+LESI,23,,,meshFine
+LESI,24,,,meshFine
+LESI,26,,,meshFine
+LESI,29,,,meshFine
+LESI,37,,,meshNormal
+LESI,38,,,meshNormal
+LESI,39,,,meshNormal
+LESI,40,,,meshNormal
+LESI,41,,,meshNormal
+LESI,42,,,meshNormal
+
+VEXT,14,14,1,0,0,-cSpaceL 		! Extrude the densly meshed section
+VEXT,18,18,1,0,0,-cSpaceL
+VEXT,19,19,1,0,0,-cSpaceL
+VEXT,20,20,1,0,0,-cSpaceL
+
+VEXT,15,15,1,0,0,-(hSpaceL-cSpaceL) 		! Extrude the rest
+VEXT,23,23,1,0,0,-(hSpaceL-cSpaceL)
+VEXT,28,28,1,0,0,-(hSpaceL-cSpaceL)
+VEXT,33,33,1,0,0,-(hSpaceL-cSpaceL)
+VGLUE,4,5,6,7,8,9,10,11
+
+LESI,54,,,meshNormal				! Set line divisions
+LESI,55,,,meshNormal
+LESI,32,,,meshNormal
+LESI,62,,,meshNormal
+LESI,94,,,meshNormal
+LESI,72,,,meshNormal
+LESI,77,,,meshNormal
+LESI,87,,,meshNormal
+
+TYPE,2 						! Mesh the second body
+VMESH,4
+VMESH,8
+VMESH,12
+VMESH,13
+VMESH,14
+VMESH,15
+VMESH,16
+VMESH,17
+
+esys,0
+
+! Write S1 layer
+MP,EX,3,(eLong+eTran)*0.5       		! YOUNG'S MODULUS (N/mm^2)
+MP,EY,3,eTran       		            ! YOUNG'S MODULUS (N/mm^2)
+MP,EZ,3,(eLong+eTran)*0.5       		! YOUNG'S MODULUS (N/mm^2)
+MP,NUXY,3,nu       		! POISSON'S RATIO
+MP,NUXZ,3,nu       		! POISSON'S RATIO
+MP,NUYZ,3,nu       		! POISSON'S RATIO
+MP,GXY,3,GLT			!eLong/(2*(1+nu))
+MP,GXZ,3,GLT			!eLong/(2*(1+nu))
+MP,GYZ,3,eTran/(2*(1+nu))			!eLong/(2*(1+nu))
+MP,MU,3,0.0       			! COEFFICIENT OF FRICTION
+
+nsel,s,loc,y,hSpaceD,hSpaceD-0.1 ! 0.1 = 100 nm S1 layer thickness
+esln,s,0                         ! Select elements with at least one node in S1 layer
+esel,r,mat,,2                    ! Deselect any indenter elements
+emodif,all,mat,3                 ! Set element pointer to S1 (mat 3)
+
+
+! ********** Contact
+ASEL,S,,,12
+NSLA,S,1
+ESLN,S
+
+TYPE,3					!MESH WITH CONTACT ELEMENTS
+REAL,3
+ESURF
+
+TYPE,4					!CHOOSE LOCATION FOR TARGET
+ASEL,S,,,21
+NSLA,S,1
+ESLN,S
+ESURF					!MESH WITH TARGET ELEMENTS
+
+! ********** Boundary conditions
+! Commented section is for application of pressure on the top side.
+!ET,5,SURF154			!3D SURFACE EFFECT ELEMENTS
+!ASEL,S,,,6,9			!PICK THE TOP OF THE MODEL
+!NSLA,S,1
+!ESLN,S
+!TYPE,5
+!REAL,5
+!ESURF					!ADD SURFACE ELEMENTS
+
+ET,10,CONTA173				!3D 4-NODE SURFACE SURFACE CONTACT ELEMENT
+KEYOP,10,2,2				!CONTACT STIFFNESS BY STRESS
+KEYOP,10,4,2				!DETECTION BY TARGET NORMAL
+KEYOP,10,12,5				!ALWAYS BONDED
+ASEL,S,,,6,9				!PICK THE TOP OF THE MODEL
+NSLA,S,1
+ESLN,S
+TYPE,10
+REAL,10
+ESURF						!MESH WITH CONTACT ELEMENTS
+N,900000,,iRadius+hSpaceD	!ADD A PILOT NODE
+ET,11,TARGE170,,1			!TARGET ELEMENTS FOR PILOT
+TYPE,11					
+TSHAP,PILOT
+E,900000					!MAKE THE PILOT ELEMENT
+D,900000,ROTZ,0				!SET BOUNDARY CONDITIONS
+ALLSEL						
+
+! Constrain bottom plate and sides
+NSEL,S,LOC,X
+D,ALL,UX,0
+NSEL,S,LOC,Z
+D,ALL,UZ,0
+NSEL,S,LOC,Y
+D,ALL,UY,0
+
+NSEL,S,LOC,Y,iRadius+hSpaceD
+D,ALL,ROTX
+D,ALL,ROTY
+allsel
+
+R,3
+!!! using auto damping
+!RMOD,3,11,-0.001 			!CONTACT DAMPING IN FIRST STEP	
+RMOD,3,23,1E-4
+RMOD,3,3,10
+
+
+SAVE
+FINISH
+
+! ********** Solver settings
+/SOLU
+OUTRES,ALL,ALL				!SOLUTION OPTIONS
+NSUB,200,500,10
+!ESEL,S,ENAME,,154
+!SFE,ALL,1,PRES,1,0.625 			!SMALL AXIAL PRESSURE LOAD
+F,900000,FY,-Fmax
+ALLSEL
+!CNVTOL,U,,0.0001
+!CNVTOL,F,,0.0001
+
+*if,fricCond,gt,0,then
+	NROP,UNSYM
+*else
+	NROP,FULL
+*endif
+*if,nlCond,eq,1,then
+	NLGEOM,ON				!LARGE DEFLECTION
+*else
+	NLGEOM,OFF
+*endif
+time,1
+
+! ********** Solve
+SOLVE					!SOLVE FIRST LOADSTEP
+
+
+*if,visco,eq,1,then
+	time,11
+	solve
+	
+	time,12
+*else
+	NSUB,1,500,1
+	time,11
+	solve	
+	NSUB,200,500,10
+	time,12 ! time,2
+*endif
+F,900000,FY,0
+solve
+
+
+
+/post1
+set,last
+
+*get,nset,active,,set,nset
+*dim,rea,table,nset+2,3
+
+
+nsel,s,loc,y,0
+*vget,botPlate,node,1,nsel
+
+allsel
+nsel,s,loc,x,0
+nsel,r,loc,z,0
+nsel,r,loc,y,iRadius+hSpaceD
+*get,nCtr,NODE,0,num,min
+allsel
+
+set,first
+
+rea(1,1) = 0
+rea(1,2) = 0
+rea(1,3) = 0
+
+
+*do,i,2,nset+2
+
+	!*set,fs,uy(900000)
+
+	*get,rea(i,3),active,0,set,time
+
+	*get,fs,NODE,nCtr,u,y
+    *set,rea(i,1),fs
+
+
+	! X Values (right and left)
+	*vmask,botPlate(1)                         ! Select left boundary
+	*vget,reac,node,,rf,fy                  ! Get reactions
+	*vmask,botPlate(1)
+	*vfact,1
+	*vscfun,rea(i,2),sum,reac               ! Calculate resultant
+
+
+	subset,next
+*enddo
+/prep7
+
+*del,afnm
+/inquire,afnm,jobname
+namx = '%afnm(1)%'
+/out,namx,fodi
+*vwrite,rea(1,1),rea(1,2),rea(1,3)
+(3F22.9)
+/out

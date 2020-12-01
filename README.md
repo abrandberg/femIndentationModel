@@ -1,5 +1,7 @@
 # femIndentationModel
 
+[![DOI](https://zenodo.org/badge/312798994.svg)](https://zenodo.org/badge/latestdoi/312798994)
+
 This repository contains the MATLAB/ANSYS code to reproduce the results of 
 
 *"Estimation of the in-situ elastic constants of wood pulp fibers in freely dried paper via AFM experiments"*
